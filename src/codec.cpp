@@ -1,6 +1,7 @@
 #include "codec.hpp"
-#include "spec.hpp"
 #include "controller.hpp"
+#include "lock_guard.hpp"
+#include "spec.hpp"
 
 using namespace uhda;
 
@@ -386,6 +387,8 @@ UhdaStatus UhdaCodec::find_output_paths() {
 }
 
 UhdaStatus UhdaCodec::get_parameter(uint8_t nid, uint8_t param, uint32_t& res) const {
+	LockGuard guard {controller->lock};
+
 	auto index = controller->submit_verb(cid, nid, cmd::GET_PARAM, param);
 	ResponseDescriptor resp {};
 	auto status = controller->wait_for_verb(index, resp);
@@ -394,6 +397,8 @@ UhdaStatus UhdaCodec::get_parameter(uint8_t nid, uint8_t param, uint32_t& res) c
 }
 
 UhdaStatus UhdaCodec::get_connection_list(uint8_t nid, uint8_t offset_index, uint32_t& res) const {
+	LockGuard guard {controller->lock};
+
 	auto index = controller->submit_verb(cid, nid, cmd::GET_CONN_LIST, offset_index);
 	ResponseDescriptor resp {};
 	auto status = controller->wait_for_verb(index, resp);
@@ -402,6 +407,8 @@ UhdaStatus UhdaCodec::get_connection_list(uint8_t nid, uint8_t offset_index, uin
 }
 
 UhdaStatus UhdaCodec::get_config_default(uint8_t nid, uint32_t& res) const {
+	LockGuard guard {controller->lock};
+
 	auto index = controller->submit_verb(cid, nid, cmd::GET_CONFIG_DEFAULT, 0);
 	ResponseDescriptor resp {};
 	auto status = controller->wait_for_verb(index, resp);
@@ -410,48 +417,64 @@ UhdaStatus UhdaCodec::get_config_default(uint8_t nid, uint32_t& res) const {
 }
 
 UhdaStatus UhdaCodec::set_selected_connection(uint8_t nid, uint8_t index) const {
+	LockGuard guard {controller->lock};
+
 	auto submit_index = controller->submit_verb(cid, nid, cmd::SET_CONN_SELECT, index);
 	ResponseDescriptor resp {};
-	return controller->wait_for_verb(index, resp);
+	return controller->wait_for_verb(submit_index, resp);
 }
 
 UhdaStatus UhdaCodec::set_amp_gain_mute(uint8_t nid, uint16_t data) const {
+	LockGuard guard {controller->lock};
+
 	auto index = controller->submit_verb_long(cid, nid, cmd::SET_AMP_GAIN_MUTE, data);
 	ResponseDescriptor resp {};
 	return controller->wait_for_verb(index, resp);
 }
 
 UhdaStatus UhdaCodec::set_converter_format(uint8_t nid, uint16_t format) const {
+	LockGuard guard {controller->lock};
+
 	auto index = controller->submit_verb_long(cid, nid, cmd::SET_CONVERTER_FORMAT, format);
 	ResponseDescriptor resp {};
 	return controller->wait_for_verb(index, resp);
 }
 
 UhdaStatus UhdaCodec::set_converter_control(uint8_t nid, uint8_t stream, uint8_t channel) const {
+	LockGuard guard {controller->lock};
+
 	auto index = controller->submit_verb(cid, nid, cmd::SET_CONVERTER_CONTROL, channel | stream << 4);
 	ResponseDescriptor resp {};
 	return controller->wait_for_verb(index, resp);
 }
 
 UhdaStatus UhdaCodec::set_pin_control(uint8_t nid, uint8_t data) const {
+	LockGuard guard {controller->lock};
+
 	auto index = controller->submit_verb(cid, nid, cmd::SET_PIN_CONTROL, data);
 	ResponseDescriptor resp {};
 	return controller->wait_for_verb(index, resp);
 }
 
 UhdaStatus UhdaCodec::set_eapd_enable(uint8_t nid, uint8_t data) const {
+	LockGuard guard {controller->lock};
+
 	auto index = controller->submit_verb(cid, nid, cmd::SET_EAPD_ENABLE, data);
 	ResponseDescriptor resp {};
 	return controller->wait_for_verb(index, resp);
 }
 
 UhdaStatus UhdaCodec::set_converter_channel_count(uint8_t nid, uint8_t count) const {
+	LockGuard guard {controller->lock};
+
 	auto index = controller->submit_verb(cid, nid, cmd::SET_CONVERTER_CHANNEL_COUNT, count);
 	ResponseDescriptor resp {};
 	return controller->wait_for_verb(index, resp);
 }
 
 UhdaStatus UhdaCodec::set_power_state(uint8_t nid, uint8_t data) const {
+	LockGuard guard {controller->lock};
+
 	auto index = controller->submit_verb(cid, nid, cmd::SET_POWER_STATE, data);
 	ResponseDescriptor resp {};
 	return controller->wait_for_verb(index, resp);

@@ -20,10 +20,6 @@ namespace {
 		return uhda_kernel_pci_read(pci_device, 0x10 + bar * 4, 4, &value);
 	}
 
-	UhdaStatus pci_write_bar(void* pci_device, uint32_t bar, uint32_t value) {
-		return uhda_kernel_pci_write(pci_device, 0x10 + bar * 4, 4, value);
-	}
-
 	enum {
 		PCI_CMD_MEM_SPACE = 1 << 1,
 		PCI_CMD_BUS_MASTER = 1 << 2
@@ -32,8 +28,15 @@ namespace {
 
 using namespace uhda;
 
+#define memset __builtin_memset
+
 UhdaController::~UhdaController() {
 	uhda_kernel_pci_enable_irq(pci_device, irq, false);
+
+	for (auto codec : codecs) {
+		codec->~UhdaCodec();
+		uhda_kernel_free(codec, sizeof(UhdaCodec));
+	}
 
 	if (space.base) {
 		uhda_kernel_pci_unmap_bar(pci_device, bar, reinterpret_cast<void*>(space.base));
@@ -45,12 +48,34 @@ UhdaController::~UhdaController() {
 	if (rirb) {
 		uhda_kernel_unmap(rirb, 0x1000);
 	}
+	if (dma_pos) {
+		uhda_kernel_unmap(dma_pos, 0x1000);
+	}
 
 	if (corb_phys) {
 		uhda_kernel_deallocate_physical(corb_phys, 0x1000);
 	}
 	if (rirb_phys) {
 		uhda_kernel_deallocate_physical(rirb_phys, 0x1000);
+	}
+	if (dpl_phys) {
+		uhda_kernel_deallocate_physical(dpl_phys, 0x1000);
+	}
+
+	for (auto& stream : in_streams) {
+		if (stream.lock) {
+			uhda_kernel_free_spinlock(stream.lock);
+		}
+	}
+
+	for (auto& stream : out_streams) {
+		if (stream.lock) {
+			uhda_kernel_free_spinlock(stream.lock);
+		}
+	}
+
+	if (lock) {
+		uhda_kernel_free_spinlock(lock);
 	}
 }
 
@@ -95,42 +120,75 @@ UhdaStatus UhdaController::init() {
 
 	status = uhda_kernel_allocate_physical(0x1000, &corb_phys);
 	if (status != UHDA_STATUS_SUCCESS) {
-		uhda_kernel_pci_deallocate_irq(pci_device, irq);
-		return status;
+		goto fail;
 	}
 
 	status = uhda_kernel_allocate_physical(0x1000, &rirb_phys);
 	if (status != UHDA_STATUS_SUCCESS) {
-		uhda_kernel_pci_deallocate_irq(pci_device, irq);
-		return status;
+		goto fail;
+	}
+
+	status = uhda_kernel_allocate_physical(0x1000, &dpl_phys);
+	if (status != UHDA_STATUS_SUCCESS) {
+		goto fail;
 	}
 
 	void* corb_ptr;
 	void* rirb_ptr;
+	void* dma_pos_ptr;
 
 	status = uhda_kernel_map(corb_phys, 0x1000, &corb_ptr);
 	if (status != UHDA_STATUS_SUCCESS) {
-		uhda_kernel_pci_deallocate_irq(pci_device, irq);
-		return status;
+		goto fail;
 	}
 
 	corb = static_cast<VerbDescriptor*>(corb_ptr);
 
 	status = uhda_kernel_map(rirb_phys, 0x1000, &rirb_ptr);
 	if (status != UHDA_STATUS_SUCCESS) {
-		uhda_kernel_pci_deallocate_irq(pci_device, irq);
-		return status;
+		goto fail;
 	}
 
 	rirb = static_cast<ResponseDescriptor*>(rirb_ptr);
 
+	status = uhda_kernel_map(dpl_phys, 0x1000, &dma_pos_ptr);
+	if (status != UHDA_STATUS_SUCCESS) {
+		goto fail;
+	}
+
+	memset(dma_pos_ptr, 0, 0x1000);
+
+	dma_pos = static_cast<uint32_t*>(dma_pos_ptr);
+
+	status = uhda_kernel_create_spinlock(&lock);
+	if (status != UHDA_STATUS_SUCCESS) {
+		goto fail;
+	}
+
+	for (auto& stream : in_streams) {
+		status = uhda_kernel_create_spinlock(&stream.lock);
+		if (status != UHDA_STATUS_SUCCESS) {
+			goto fail;
+		}
+	}
+
+	for (auto& stream : out_streams) {
+		status = uhda_kernel_create_spinlock(&stream.lock);
+		if (status != UHDA_STATUS_SUCCESS) {
+			goto fail;
+		}
+	}
+
 	status = resume();
 	if (status != UHDA_STATUS_SUCCESS) {
-		uhda_kernel_pci_deallocate_irq(pci_device, irq);
-		return status;
+		goto fail;
 	}
 
 	return UHDA_STATUS_SUCCESS;
+
+fail:
+	uhda_kernel_pci_deallocate_irq(pci_device, irq);
+	return status;
 }
 
 UhdaStatus UhdaController::destroy() {
@@ -287,17 +345,23 @@ UhdaStatus UhdaController::resume() {
 	auto rintcnt = space.load(regs::RINTCNT);
 	space.store(regs::RINTCNT, (rintcnt & ~0xFF) | 255);
 
+	space.store(regs::DPLBASE, dplbase::BASE(dpl_phys >> 7));
+	space.store(regs::DPUBASE, dpl_phys >> 32);
+	space.store(regs::DPLBASE, dplbase::BASE(dpl_phys >> 7) | dplbase::DPBE(true));
+
 	in_stream_count = gcap & gcap::ISS;
 	out_stream_count = gcap & gcap::OSS;
 
 	for (uint32_t i = 0; i < in_stream_count; ++i) {
 		in_streams[i].space = space.subspace(0x80 + i * 0x20);
+		in_streams[i].dma_pos = &dma_pos[i * 2];
 		in_streams[i].index = i;
 		in_stream_ptrs[i] = &in_streams[i];
 	}
 
 	for (uint32_t i = 0; i < out_stream_count; ++i) {
 		out_streams[i].space = space.subspace(0x80 + in_stream_count * 0x20 + i * 0x20);
+		out_streams[i].dma_pos = &dma_pos[in_stream_count * 2 + i * 2];
 		out_streams[i].index = i;
 		out_streams[i].output = true;
 		out_stream_ptrs[i] = &out_streams[i];

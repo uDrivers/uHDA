@@ -83,3 +83,27 @@ UhdaStatus uhda_kernel_map(uintptr_t phys, size_t size, void** virt);
  * Unmaps previously mapped memory.
  */
 void uhda_kernel_unmap(void* virt, size_t size);
+
+/*
+ * Creates an opaque spinlock.
+ */
+UhdaStatus uhda_kernel_create_spinlock(void** spinlock);
+
+/*
+ * Frees an opaque spinlock.
+ */
+void uhda_kernel_free_spinlock(void* spinlock);
+
+/*
+ * Locks a spinlock.
+ *
+ * Note: this is also expected to disable interrupts.
+ */
+UhdaIrqState uhda_kernel_lock_spinlock(void* spinlock);
+
+/*
+ * Unlocks a spinlock.
+ *
+ * Note: this is also expected to restore the previous interrupt state.
+ */
+void uhda_kernel_unlock_spinlock(void* spinlock, UhdaIrqState irq_state);

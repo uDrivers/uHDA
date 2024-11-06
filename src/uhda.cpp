@@ -1,8 +1,9 @@
 #include "uhda/uhda.h"
-#include "uhda/kernel_api.h"
 #include "controller.hpp"
-#include "utils.hpp"
+#include "lock_guard.hpp"
 #include "spec.hpp"
+#include "uhda/kernel_api.h"
+#include "utils.hpp"
 
 namespace {
 	struct Device {
@@ -432,6 +433,11 @@ UhdaStatus uhda_stream_setup(
 	uint32_t ring_buffer_size,
 	UhdaBufferFillFn buffer_fill_fn,
 	void* arg) {
+	LockGuard guard {stream->lock};
+	if (stream->ring_buffer) {
+		return UHDA_STATUS_UNSUPPORTED;
+	}
+
 	if (!stream->output) {
 		return UHDA_STATUS_UNSUPPORTED;
 	}
@@ -455,32 +461,11 @@ UhdaStatus uhda_stream_shutdown(UhdaStream* stream) {
 #define memcpy __builtin_memcpy
 
 UhdaStatus uhda_stream_play(UhdaStream* stream, bool play) {
-	auto ctl0 = stream->space.load(regs::stream::CTL0);
-	if (play) {
-		if (!(ctl0 & sdctl0::RUN)) {
-			uint32_t initial_amount = 0x1000 * 4;
-
-			for (uint32_t i = 0; i < initial_amount; i += 0x1000) {
-				memcpy(
-					stream->buffer_pages[i / 0x1000],
-					launder(static_cast<char*>(stream->ring_buffer) + i),
-					0x1000);
-			}
-			stream->ring_buffer_size -= initial_amount;
-			stream->ring_buffer_read_pos += initial_amount;
-			stream->current_pos = initial_amount;
-
-			ctl0 |= sdctl0::RUN(true);
-			stream->space.store(regs::stream::CTL0, ctl0);
-		}
-	}
-	else {
-		if (ctl0 & sdctl0::RUN) {
-			ctl0 &= ~sdctl0::RUN;
-			stream->space.store(regs::stream::CTL0, ctl0);
-		}
+	if (!stream->output) {
+		return UHDA_STATUS_UNSUPPORTED;
 	}
 
+	stream->play(play);
 	return UHDA_STATUS_SUCCESS;
 }
 

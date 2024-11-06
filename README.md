@@ -8,8 +8,6 @@
 ### Todo
 - Unified subset of kernel API shared with [uACPI](https://github.com/UltraOS/uACPI)
 - Document concepts such as output groups
-- It plays some garbage some time after playback has been started
-- Locking
 - Recording
 - Multichannel to different outputs (likely used for surround)
 - More output info, right now only the output type is exposed

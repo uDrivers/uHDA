@@ -32,8 +32,10 @@ struct UhdaController {
 	uint16_t rirb_size {};
 	uintptr_t corb_phys {};
 	uintptr_t rirb_phys {};
+	uintptr_t dpl_phys {};
 	uhda::VerbDescriptor* corb {};
 	uhda::ResponseDescriptor* rirb {};
+	uint32_t* dma_pos {};
 	UhdaStream in_streams[16] {};
 	UhdaStream out_streams[16] {};
 	UhdaStream* in_stream_ptrs[16] {};
@@ -41,4 +43,6 @@ struct UhdaController {
 	uhda::vector<UhdaCodec*> codecs;
 	uint8_t in_stream_count {};
 	uint8_t out_stream_count {};
+
+	void* lock {};
 };

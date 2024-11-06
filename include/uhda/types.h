@@ -14,6 +14,8 @@ typedef enum UhdaStatus {
 	UHDA_STATUS_TIMEOUT
 } UhdaStatus;
 
+typedef uintptr_t UhdaIrqState;
+
 typedef bool (*UhdaIrqHandlerFn)(void* arg);
 
 typedef struct UhdaController UhdaController;
