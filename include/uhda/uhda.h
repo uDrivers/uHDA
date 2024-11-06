@@ -2,6 +2,36 @@
 
 #include "types.h"
 
+/*
+ * Concepts:
+ * ------------------------------------------------------------------------
+ * Controller
+ *  A HDA controller sending data to the attached codecs.
+ *
+ * Codec
+ *  The actual audio processing unit, usually there is only one,
+ *  but it is possible to have multiple connected to the same Controller.
+ *
+ * Stream
+ *  A stream of audio data either going from the controller to the codecs or
+ *  from the codecs to the controller (in case of input).
+ *
+ * Output group
+ *  A group of logically-related outputs sorted by their sequence,
+ *  used for multichannel output (likely surround).
+ *  It is fine to just use the first one from the group if you don't care about that.
+ *
+ * Output
+ *  A physical output, for an example a speaker or a headphone jack.
+ *
+ * Path
+ *  A path from the codec to an input/output.
+ *  In case of an output the audio is picked up from a stream by the other end of the path,
+ *  it then traverses through the path finally coming out of the output.
+ *  The case of input is the inverse of that, the audio comes from the input
+ *  and is picked up by the stream on the other end of the path.
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
