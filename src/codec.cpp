@@ -109,6 +109,13 @@ UhdaStatus UhdaCodec::init() {
 				}
 			}
 
+			// set output amp, set left amp, set right amp and mute
+			uint16_t amp_data = 1 << 15 | 1 << 13 | 1 << 12 | 1 << 7;
+			status = set_amp_gain_mute(widget_i, amp_data);
+			if (status != UHDA_STATUS_SUCCESS) {
+				return status;
+			}
+
 			UhdaWidget widget {
 				.codec = this,
 				.connections {move(connections)},

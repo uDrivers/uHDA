@@ -262,8 +262,8 @@ UhdaStatus uhda_path_setup(UhdaPath* path, UhdaStreamParams* params, UhdaStream*
 	for (size_t i = 0; i < path->widgets.size(); ++i) {
 		auto widget = path->widgets[i];
 
-		if (i > 0 && widget->connections.size() > 1) {
-			auto prev_widget = path->widgets[i - 1];
+		if (i != path->widgets.size() - 1 && widget->connections.size() > 1) {
+			auto next_widget = path->widgets[i + 1];
 
 			size_t index = 0;
 			for (size_t j = 0; j < widget->connections.size(); ++j) {
@@ -271,14 +271,14 @@ UhdaStatus uhda_path_setup(UhdaPath* path, UhdaStreamParams* params, UhdaStream*
 				if (connection & 1 << 7) {
 					auto start = widget->connections[j - 1];
 					auto end = connection & 0x7F;
-					if (prev_widget->nid >= start && prev_widget->nid <= end) {
-						index += prev_widget->nid - start;
+					if (next_widget->nid >= start && next_widget->nid <= end) {
+						index += next_widget->nid - start;
 						break;
 					}
 					index += end - start;
 				}
 				else {
-					if (prev_widget->nid == connection) {
+					if (next_widget->nid == connection) {
 						break;
 					}
 					++index;
@@ -314,7 +314,7 @@ UhdaStatus uhda_path_setup(UhdaPath* path, UhdaStreamParams* params, UhdaStream*
 			}
 
 			// headphone amp, out enable
-			uint32_t pin_control = 1 << 7 | 1 << 6;
+			uint8_t pin_control = 1 << 7 | 1 << 6;
 			status = codec->set_pin_control(widget->nid, pin_control);
 			if (status != UHDA_STATUS_SUCCESS) {
 				return status;
@@ -326,7 +326,7 @@ UhdaStatus uhda_path_setup(UhdaPath* path, UhdaStreamParams* params, UhdaStream*
 			// set output amp, set left amp, set right amp and gain
 			uint16_t amp_data = 1 << 15 | 1 << 13 | 1 << 12 | step;
 			status = codec->set_amp_gain_mute(widget->nid, amp_data);
-			if (status == UHDA_STATUS_SUCCESS) {
+			if (status != UHDA_STATUS_SUCCESS) {
 				return status;
 			}
 		}
@@ -344,7 +344,7 @@ UhdaStatus uhda_path_setup(UhdaPath* path, UhdaStreamParams* params, UhdaStream*
 			path->gain = step / 2;
 
 			status = codec->set_amp_gain_mute(widget->nid, amp_data);
-			if (status == UHDA_STATUS_SUCCESS) {
+			if (status != UHDA_STATUS_SUCCESS) {
 				return status;
 			}
 		}
@@ -374,7 +374,7 @@ UhdaStatus uhda_path_shutdown(UhdaPath* path) {
 			// set output amp, set left amp, set right amp and mute
 			uint16_t amp_data = 1 << 15 | 1 << 13 | 1 << 12 | 1 << 7;
 			auto status = codec->set_amp_gain_mute(widget->nid, amp_data);
-			if (status == UHDA_STATUS_SUCCESS) {
+			if (status != UHDA_STATUS_SUCCESS) {
 				return status;
 			}
 		}
@@ -417,14 +417,21 @@ UhdaStatus uhda_path_set_volume(UhdaPath* path, int volume) {
 }
 
 UhdaStatus uhda_path_mute(UhdaPath* path, bool mute) {
-	auto output = path->widgets.back();
-	if (output->type != widget_type::AUDIO_OUT) {
-		return UHDA_STATUS_UNSUPPORTED;
+	auto pin = path->widgets.front();
+
+	UhdaWidget* mute_widget;
+
+	// bit 31 == mute supported
+	if (pin->out_amp_caps & 1 << 31) {
+		mute_widget = pin;
+	}
+	else {
+		mute_widget = path->widgets.back();
 	}
 
 	// set output amp, set left amp, set right amp, mute and gain
 	uint16_t amp_data = 1 << 15 | 1 << 13 | 1 << 12 | (mute ? (1 << 7) : 0) | path->gain;
-	return path->codec->set_amp_gain_mute(output->nid, amp_data);
+	return path->codec->set_amp_gain_mute(mute_widget->nid, amp_data);
 }
 
 UhdaStatus uhda_stream_setup(

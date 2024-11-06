@@ -275,9 +275,7 @@ void UhdaStream::output_irq() {
 	if (software_ahead > ALLOWED_SOFTWARE_AHEAD) {
 		prev_irq_pos = pos;
 
-		auto sts = space.load(regs::stream::STS);
-		sts &= ~sdsts::BCIS;
-		space.store(regs::stream::STS, sts);
+		space.store(regs::stream::STS, sdsts::BCIS(true));
 
 		return;
 	}
@@ -364,7 +362,5 @@ void UhdaStream::output_irq() {
 
 	prev_irq_pos = pos;
 
-	auto sts = space.load(regs::stream::STS);
-	sts &= ~sdsts::BCIS;
-	space.store(regs::stream::STS, sts);
+	space.store(regs::stream::STS, sdsts::BCIS(true));
 }
