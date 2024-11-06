@@ -127,6 +127,16 @@ void uhda_output_group_get_outputs(
 UhdaOutputInfo uhda_output_get_info(const UhdaOutput* output);
 
 /*
+ * A table mapping colors to strings.
+ */
+extern const char* UHDA_OUTPUT_COLOR_STRINGS[UHDA_COLOR_OTHER + 1];
+
+/*
+ * A table mapping locations to strings.
+ */
+extern const char* UHDA_LOCATION_STRINGS[UHDA_LOCATION_UNKNOWN + 1];
+
+/*
  * Checks whether the provided paths are usable at the same time,
  * either for playing the same stream on all of them or different ones.
  */

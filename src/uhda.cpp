@@ -118,8 +118,85 @@ UhdaOutputInfo uhda_output_get_info(const UhdaOutput* output) {
 			break;
 	}
 
+	uint8_t color = output->widget->pin_caps >> 12 & 0xF;
+	if (color >= 0xA && color <= 0xD) {
+		info.color = UHDA_COLOR_UNKNOWN;
+	}
+	else {
+		info.color = static_cast<UhdaColor>(color);
+	}
+
+	uint8_t location = output->widget->pin_caps >> 24 & 0x3F;
+	uint8_t fine_location = location & 0xF;
+	uint8_t coarse_location = location >> 4 & 0b11;
+
+	if (coarse_location == 0 && fine_location == 7) {
+		info.location = UHDA_LOCATION_REAR_PANEL;
+	}
+	else if (coarse_location == 0 && fine_location == 8) {
+		info.location = UHDA_LOCATION_DRIVE_BAY;
+	}
+	else if (coarse_location == 1 && fine_location == 7) {
+		info.location = UHDA_LOCATION_RISER;
+	}
+	else if (coarse_location == 1 && fine_location == 8) {
+		info.location = UHDA_LOCATION_DISPLAY;
+	}
+	else if (coarse_location == 1 && fine_location == 9) {
+		info.location = UHDA_LOCATION_ATAPI;
+	}
+	else if (coarse_location == 3 && fine_location == 7) {
+		info.location = UHDA_LOCATION_INSIDE_LID;
+	}
+	else if (coarse_location == 3 && fine_location == 8) {
+		info.location = UHDA_LOCATION_OUTSIDE_LID;
+	}
+	else if (fine_location <= 7) {
+		info.location = static_cast<UhdaLocation>(fine_location);
+	}
+	else if (fine_location <= 9) {
+		info.location = UHDA_LOCATION_SPECIAL;
+	}
+	else {
+		info.location = UHDA_LOCATION_UNKNOWN;
+	}
+
 	return info;
 }
+
+const char* UHDA_OUTPUT_COLOR_STRINGS[UHDA_COLOR_OTHER + 1] {
+	"unknown",
+	"black",
+	"grey",
+	"blue",
+	"green",
+	"red",
+	"orange",
+	"yellow",
+	"purple",
+	"pink",
+	"white",
+	"other"
+};
+
+const char* UHDA_LOCATION_STRINGS[UHDA_LOCATION_UNKNOWN + 1] {
+	"n/a",
+	"rear",
+	"front",
+	"left",
+	"right",
+	"top",
+	"bottom",
+	"special",
+	"rear panel",
+	"drive bay",
+	"riser",
+	"display",
+	"atapi",
+	"inside lid",
+	"outside lid",
+	"unknown"
+};
 
 bool uhda_paths_usable_simultaneously(const UhdaPath** paths, size_t count, bool same_stream) {
 	for (size_t i = 0; i < count; ++i) {
