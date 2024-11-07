@@ -48,6 +48,7 @@ struct UhdaCodec {
 
 	UhdaStatus get_parameter(uint8_t nid, uint8_t param, uint32_t& res) const;
 	UhdaStatus get_connection_list(uint8_t nid, uint8_t offset_index, uint32_t& res) const;
+	UhdaStatus get_pin_sense(uint8_t nid, uint32_t& res) const;
 	UhdaStatus get_config_default(uint8_t nid, uint32_t& res) const;
 
 	[[nodiscard]] UhdaStatus set_selected_connection(uint8_t nid, uint8_t index) const;
@@ -55,6 +56,7 @@ struct UhdaCodec {
 	[[nodiscard]] UhdaStatus set_converter_format(uint8_t nid, uint16_t format) const;
 	[[nodiscard]] UhdaStatus set_converter_control(uint8_t nid, uint8_t stream, uint8_t channel) const;
 	[[nodiscard]] UhdaStatus set_pin_control(uint8_t nid, uint8_t data) const;
+	[[nodiscard]] UhdaStatus set_pin_sense(uint8_t nid, uint8_t data) const;
 	[[nodiscard]] UhdaStatus set_eapd_enable(uint8_t nid, uint8_t data) const;
 	[[nodiscard]] UhdaStatus set_converter_channel_count(uint8_t nid, uint8_t count) const;
 	[[nodiscard]] UhdaStatus set_power_state(uint8_t nid, uint8_t data) const;

@@ -92,6 +92,30 @@ void uhda_output_group_get_outputs(
 	*output_count = output_group->outputs.size();
 }
 
+UhdaStatus uhda_output_get_presence(const UhdaOutput* output, bool* presence) {
+	if (!output->widget->presence_detect) {
+		return UHDA_STATUS_UNSUPPORTED;
+	}
+
+	auto codec = output->widget->codec;
+
+	if (output->widget->trigger) {
+		auto status = codec->set_pin_sense(output->widget->nid, 0);
+		if (status != UHDA_STATUS_SUCCESS) {
+			return status;
+		}
+	}
+
+	uint32_t value;
+	auto status = codec->get_pin_sense(output->widget->nid, value);
+	if (status != UHDA_STATUS_SUCCESS) {
+		return status;
+	}
+
+	*presence = value & 1 << 31;
+	return UHDA_STATUS_SUCCESS;
+}
+
 UhdaOutputInfo uhda_output_get_info(const UhdaOutput* output) {
 	UhdaOutputInfo info {};
 	switch (output->widget->default_dev) {

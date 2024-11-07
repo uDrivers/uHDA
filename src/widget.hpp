@@ -13,4 +13,6 @@ struct UhdaWidget {
 	uint8_t nid;
 	uint8_t type;
 	uint8_t default_dev;
+	bool trigger : 1;
+	bool presence_detect : 1;
 };

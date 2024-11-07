@@ -18,8 +18,10 @@
  *
  * Output group
  *  A group of logically-related outputs sorted by their sequence,
- *  used for multichannel output (likely surround).
- *  It is fine to just use the first one from the group if you don't care about that.
+ *  used for multichannel output (likely surround) or just
+ *  grouping related outputs together (e.g. jacks on the back of a motherboard).
+ *  It may also contain different outputs that go to the same physical output,
+ *  just with different connections.
  *
  * Output
  *  A physical output, for an example a speaker or a headphone jack.
@@ -122,7 +124,12 @@ void uhda_output_group_get_outputs(
 	size_t* output_count);
 
 /*
- * Gets info about a HDA output.
+ * Gets presence info of an output if available.
+ */
+UhdaStatus uhda_output_get_presence(const UhdaOutput* output, bool* presence);
+
+/*
+ * Gets info about an output.
  */
 UhdaOutputInfo uhda_output_get_info(const UhdaOutput* output);
 

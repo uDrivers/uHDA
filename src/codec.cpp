@@ -116,6 +116,10 @@ UhdaStatus UhdaCodec::init() {
 				return status;
 			}
 
+			bool trigger = pin_caps & 1 << 1;
+			bool presence_detect = pin_caps & 1 << 2;
+			bool no_presence_detect = default_config >> 8 & 1;
+
 			UhdaWidget widget {
 				.codec = this,
 				.connections {move(connections)},
@@ -125,7 +129,9 @@ UhdaStatus UhdaCodec::init() {
 				.default_config = default_config,
 				.nid = widget_i,
 				.type = type,
-				.default_dev = static_cast<uint8_t>(default_config >> 20 & 0xF)
+				.default_dev = static_cast<uint8_t>(default_config >> 20 & 0xF),
+				.trigger = trigger,
+				.presence_detect = !no_presence_detect && presence_detect
 			};
 			if (widgets.size() <= widget_i) {
 				if (!widgets.resize(widget_i + 1)) {
@@ -423,6 +429,16 @@ UhdaStatus UhdaCodec::get_config_default(uint8_t nid, uint32_t& res) const {
 	return status;
 }
 
+UhdaStatus UhdaCodec::get_pin_sense(uint8_t nid, uint32_t& res) const {
+	LockGuard guard {controller->lock};
+
+	auto index = controller->submit_verb(cid, nid, cmd::GET_PIN_SENSE, 0);
+	ResponseDescriptor resp {};
+	auto status = controller->wait_for_verb(index, resp);
+	res = resp.resp;
+	return status;
+}
+
 UhdaStatus UhdaCodec::set_selected_connection(uint8_t nid, uint8_t index) const {
 	LockGuard guard {controller->lock};
 
@@ -459,6 +475,14 @@ UhdaStatus UhdaCodec::set_pin_control(uint8_t nid, uint8_t data) const {
 	LockGuard guard {controller->lock};
 
 	auto index = controller->submit_verb(cid, nid, cmd::SET_PIN_CONTROL, data);
+	ResponseDescriptor resp {};
+	return controller->wait_for_verb(index, resp);
+}
+
+UhdaStatus UhdaCodec::set_pin_sense(uint8_t nid, uint8_t data) const {
+	LockGuard guard {controller->lock};
+
+	auto index = controller->submit_verb(cid, nid, cmd::SET_PIN_SENSE, data);
 	ResponseDescriptor resp {};
 	return controller->wait_for_verb(index, resp);
 }
