@@ -11,24 +11,27 @@ namespace uhda {
 		vector(const vector&) = delete;
 		vector& operator=(const vector&) = delete;
 
-		vector(vector&& other) : ptr {other.ptr}, _size {other._size} {
+		vector(vector&& other) noexcept : ptr {other.ptr}, _size {other._size}, cap {other.cap} {
 			other.ptr = nullptr;
 			other._size = 0;
+			other.cap = 0;
 		}
 
-		vector& operator=(vector&& other) {
+		vector& operator=(vector&& other) noexcept {
 			if (ptr) {
 				for (size_t i = 0; i < _size; ++i) {
 					ptr[i].~T();
 				}
 
-				uhda_kernel_free(ptr, _size * sizeof(T));
+				uhda_kernel_free(ptr, cap * sizeof(T));
 			}
 
 			ptr = other.ptr;
 			_size = other._size;
+			cap = other.cap;
 			other.ptr = nullptr;
 			other._size = 0;
+			other.cap = 0;
 			return *this;
 		}
 
@@ -36,83 +39,71 @@ namespace uhda {
 			for (size_t i = 0; i < _size; ++i) {
 				ptr[i].~T();
 			}
-			uhda_kernel_free(ptr, _size * sizeof(T));
+			uhda_kernel_free(ptr, cap * sizeof(T));
 		}
 
 		[[nodiscard]] bool push(T value) {
-			auto* new_ptr = static_cast<T*>(uhda_kernel_malloc((_size + 1) * sizeof(T)));
-			if (!new_ptr) {
+			if (!ensure_space()) {
 				return false;
 			}
 
-			for (size_t i = 0; i < _size; ++i) {
-				construct<T>(&new_ptr[i], move(ptr[i]));
-				ptr[i].~T();
-			}
-
-			uhda_kernel_free(ptr, _size * sizeof(T));
-
-			construct<T>(&new_ptr[_size++], move(value));
-
-			ptr = new_ptr;
-
+			construct<T>(&ptr[_size++], move(value));
 			return true;
 		}
 
 		[[nodiscard]] bool insert(T* pos, T value) {
-			auto* new_ptr = static_cast<T*>(uhda_kernel_malloc((_size + 1) * sizeof(T)));
-			if (!new_ptr) {
-				return false;
-			}
-
 			if (!pos) {
 				pos = ptr;
 			}
 
 			size_t index = pos - ptr;
 
-			for (size_t i = 0; i < index; ++i) {
-				construct<T>(&new_ptr[i], move(ptr[i]));
-				ptr[i].~T();
+			if (!ensure_space()) {
+				return false;
 			}
 
-			construct<T>(&new_ptr[index], move(value));
+			construct<T>(&ptr[_size++]);
 
-			for (size_t i = index + 1; i < _size; ++i) {
-				construct<T>(&new_ptr[i], move(ptr[i - 1]));
-				ptr[i - 1].~T();
+			for (size_t i = _size - 1; i > index; --i) {
+				ptr[i] = move(ptr[i - 1]);
 			}
 
-			uhda_kernel_free(ptr, _size * sizeof(T));
-
-			ptr = new_ptr;
+			ptr[index] = move(value);
 
 			return true;
 		}
 
 		[[nodiscard]] bool resize(size_t new_size) {
-			if (new_size < _size) {
+			if (new_size <= _size) {
 				for (size_t i = new_size; i < _size; ++i) {
 					ptr[i].~T();
 				}
 			}
 			else {
-				auto* new_ptr = static_cast<T*>(uhda_kernel_malloc(new_size * sizeof(T)));
-				if (!new_ptr) {
-					return false;
+				if (new_size <= cap) {
+					for (size_t i = _size; i < new_size; ++i) {
+						construct<T>(&ptr[i]);
+					}
 				}
+				else {
+					auto* new_ptr = static_cast<T*>(uhda_kernel_malloc(new_size * sizeof(T)));
+					if (!new_ptr) {
+						return false;
+					}
 
-				for (size_t i = 0; i < _size; ++i) {
-					construct<T>(&new_ptr[i], move(ptr[i]));
-					ptr[i].~T();
-				}
+					for (size_t i = 0; i < _size; ++i) {
+						construct<T>(&new_ptr[i], move(ptr[i]));
+						ptr[i].~T();
+					}
 
-				uhda_kernel_free(ptr, _size * sizeof(T));
+					uhda_kernel_free(ptr, cap * sizeof(T));
 
-				ptr = new_ptr;
+					ptr = new_ptr;
+					cap = new_size;
 
-				for (size_t i = _size; i < new_size; ++i) {
-					construct<T>(&new_ptr[i]);
+					for (size_t i = _size; i < new_size; ++i) {
+						construct<T>(&new_ptr[i]);
+					}
 				}
 			}
 
@@ -173,7 +164,31 @@ namespace uhda {
 		}
 
 	private:
+		bool ensure_space() {
+			if (_size == cap) {
+				auto new_cap = cap < 8 ? 8 : cap + cap / 2;
+
+				auto* new_ptr = static_cast<T*>(uhda_kernel_malloc(new_cap * sizeof(T)));
+				if (!new_ptr) {
+					return false;
+				}
+
+				for (size_t i = 0; i < _size; ++i) {
+					construct<T>(&new_ptr[i], move(ptr[i]));
+					ptr[i].~T();
+				}
+
+				uhda_kernel_free(ptr, cap * sizeof(T));
+
+				ptr = new_ptr;
+				cap = new_cap;
+			}
+
+			return true;
+		}
+
 		T* ptr {};
 		size_t _size {};
+		size_t cap {};
 	};
 }
