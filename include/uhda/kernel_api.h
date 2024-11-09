@@ -13,12 +13,19 @@ UhdaStatus uhda_kernel_pci_read(void* pci_device, uint8_t offset, uint8_t size, 
 UhdaStatus uhda_kernel_pci_write(void* pci_device, uint8_t offset, uint8_t size, uint32_t value);
 
 /*
- * Allocates a PCI irq for the device and sets `fn` as the callback to be called when the irq occurs.
+ * Allocates a PCI irq for the device and sets `fn` as a callback to be called when the irq occurs.
+ * Hints contain info about what kind of irq should be allocated,
+ * it is strongly recommended to follow them as otherwise issues may occur.
  *
  * HDA only needs one irq, so this is guaranteed to be called exactly once for each device.
  * `opaque_irq` can be used to store a handle to the interrupt.
  */
-UhdaStatus uhda_kernel_pci_allocate_irq(void* pci_device, UhdaIrqHandlerFn fn, void* arg, void** opaque_irq);
+UhdaStatus uhda_kernel_pci_allocate_irq(
+	void* pci_device,
+	UhdaIrqHint hint,
+	UhdaIrqHandlerFn fn,
+	void* arg,
+	void** opaque_irq);
 
 /*
  * Deallocates a previously allocated PCI irq.

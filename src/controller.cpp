@@ -113,7 +113,22 @@ UhdaStatus UhdaController::init() {
 		return status;
 	}
 
-	status = uhda_kernel_pci_allocate_irq(pci_device, hda_irq, this, &irq);
+	uint32_t vendor_id;
+	status = uhda_kernel_pci_read(pci_device, 0, 2, &vendor_id);
+	if (status != UHDA_STATUS_SUCCESS) {
+		return status;
+	}
+
+	// apparently at least some nvidia cards may have issues when using msi.
+	UhdaIrqHint irq_hint;
+	if (vendor_id == 0x10DE) {
+		irq_hint = UHDA_IRQ_HINT_INTX;
+	}
+	else {
+		irq_hint = UHDA_IRQ_HINT_ANY;
+	}
+
+	status = uhda_kernel_pci_allocate_irq(pci_device, irq_hint, hda_irq, this, &irq);
 	if (status != UHDA_STATUS_SUCCESS) {
 		return status;
 	}

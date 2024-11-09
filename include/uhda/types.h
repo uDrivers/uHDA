@@ -14,6 +14,11 @@ typedef enum UhdaStatus {
 	UHDA_STATUS_TIMEOUT
 } UhdaStatus;
 
+typedef enum UhdaIrqHint {
+	UHDA_IRQ_HINT_ANY,
+	UHDA_IRQ_HINT_INTX
+} UhdaIrqHint;
+
 typedef uintptr_t UhdaIrqState;
 
 typedef bool (*UhdaIrqHandlerFn)(void* arg);
