@@ -540,7 +540,10 @@ UhdaStatus uhda_stream_setup(
 	const UhdaStreamParams* params,
 	uint32_t ring_buffer_size,
 	UhdaBufferFillFn buffer_fill_fn,
-	void* arg) {
+	void* buffer_fill_arg,
+	uint32_t buffer_trip_threshold,
+	UhdaBufferTripFn buffer_trip_fn,
+	void* buffer_trip_arg) {
 	LockGuard guard {stream->lock};
 	if (stream->ring_buffer) {
 		return UHDA_STATUS_UNSUPPORTED;
@@ -551,7 +554,10 @@ UhdaStatus uhda_stream_setup(
 	}
 
 	stream->buffer_fill_fn = buffer_fill_fn;
-	stream->buffer_fill_fn_arg = arg;
+	stream->buffer_fill_fn_arg = buffer_fill_arg;
+	stream->buffer_trip_fn = buffer_trip_fn;
+	stream->buffer_trip_fn_arg = buffer_trip_arg;
+	stream->buffer_trip_threshold = buffer_trip_threshold;
 
 	auto params_copy = *params;
 

@@ -23,6 +23,9 @@ struct UhdaStream {
 	uhda::MemSpace space {0};
 	UhdaBufferFillFn buffer_fill_fn {};
 	void* buffer_fill_fn_arg {};
+	UhdaBufferTripFn buffer_trip_fn {};
+	void* buffer_trip_fn_arg {};
+	uint32_t buffer_trip_threshold {};
 	uintptr_t bdl_phys {};
 	uhda::BufferDescriptor* bdl {};
 

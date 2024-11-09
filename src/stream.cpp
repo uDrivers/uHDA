@@ -315,6 +315,10 @@ void UhdaStream::output_irq() {
 
 	LockGuard guard {lock};
 
+	if (buffer_trip_threshold && ring_buffer_size < buffer_trip_threshold) {
+		buffer_trip_fn(buffer_trip_fn_arg, ring_buffer_size);
+	}
+
 	for (uint32_t remaining = bytes_after_last_irq; remaining;) {
 		auto desc_index = current_fill_pos / 0x1000;
 		auto desc_offset = current_fill_pos % 0x1000;

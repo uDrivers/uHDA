@@ -188,15 +188,22 @@ UhdaStatus uhda_path_mute(UhdaPath* path, bool mute);
  * Sets up a stream for playback.
  *
  * `ring_buffer_size` is the size of an internal ring buffer that is used to queue output.
- * `buffer_fill_fn` is an optional callback that is called when the ring buffer has space,
- * it is called from an interrupt context.
+ * `buffer_fill_fn` is an optional callback that is called when the ring buffer has space
+ * and more data is needed.
+ * `buffer_trip_threshold` is the trip threshold in bytes for the optional buffer trip function,
+ * called once per data period when the buffer size is below the specified threshold.
+ *
+ * Note: all callback functions are run in an interrupt context.
  */
 UhdaStatus uhda_stream_setup(
 	UhdaStream* stream,
 	const UhdaStreamParams* params,
 	uint32_t ring_buffer_size,
 	UhdaBufferFillFn buffer_fill_fn,
-	void* arg);
+	void* buffer_fill_arg,
+	uint32_t buffer_trip_threshold,
+	UhdaBufferTripFn buffer_trip_fn,
+	void* buffer_trip_arg);
 
 /*
  * Shuts down an already set up stream.
