@@ -267,6 +267,31 @@ uint32_t UhdaStream::get_software_ahead(uint32_t pos) const {
 	return software_ahead;
 }
 
+void UhdaStream::ring_buffer_read(void* dest, size_t size) {
+	auto src_ptr = launder(static_cast<char*>(ring_buffer) + ring_buffer_read_pos);
+	auto dest_ptr = launder(static_cast<char*>(dest));
+
+	auto remaining_at_end = ring_buffer_capacity - ring_buffer_read_pos;
+	if (size <= remaining_at_end) {
+		memcpy(dest_ptr, src_ptr, size);
+		ring_buffer_read_pos += size;
+		if (ring_buffer_read_pos == ring_buffer_capacity) {
+			ring_buffer_read_pos = 0;
+		}
+		ring_buffer_size -= size;
+	}
+	else {
+		memcpy(dest_ptr, src_ptr, remaining_at_end);
+		memcpy(dest_ptr + remaining_at_end, ring_buffer, size - remaining_at_end);
+
+		ring_buffer_read_pos = size - remaining_at_end;
+		if (ring_buffer_read_pos == ring_buffer_capacity) {
+			ring_buffer_read_pos = 0;
+		}
+		ring_buffer_size -= size;
+	}
+}
+
 void UhdaStream::output_irq() {
 	auto pos = get_pos() % BUFFER_SIZE;
 
@@ -290,71 +315,89 @@ void UhdaStream::output_irq() {
 
 	LockGuard guard {lock};
 
-	for (uint32_t fill_offset = 0; fill_offset < bytes_after_last_irq; fill_offset += 0x1000) {
+	for (uint32_t remaining = bytes_after_last_irq; remaining;) {
 		auto desc_index = current_fill_pos / 0x1000;
-		auto desc_ptr = buffer_pages[desc_index];
+		auto desc_offset = current_fill_pos % 0x1000;
+		auto desc_ptr = static_cast<char*>(buffer_pages[desc_index]) + desc_offset;
 
-		auto size = ring_buffer_size;
-		if (size < 0x1000) {
-			// underflow
+		uint32_t to_copy_desc = 0x1000 - desc_offset;
+
+		if (remaining < to_copy_desc) {
+			to_copy_desc = remaining;
+		}
+
+		auto orig_to_copy = to_copy_desc;
+
+		auto ring_buffer_available = ring_buffer_size;
+		if (ring_buffer_available >= to_copy_desc) {
+			ring_buffer_read(desc_ptr, to_copy_desc);
+		}
+		else {
+			if (ring_buffer_available) {
+				ring_buffer_read(desc_ptr, ring_buffer_available);
+				desc_ptr += ring_buffer_available;
+				to_copy_desc -= ring_buffer_available;
+			}
+
 			if (buffer_fill_fn) {
-				uint32_t can_copy = ring_buffer_capacity - size;
-
-				ring_buffer_size += can_copy;
+				uint32_t can_copy = ring_buffer_capacity - ring_buffer_size;
 
 				auto remaining_at_end = ring_buffer_capacity - ring_buffer_write_pos;
 
 				if (remaining_at_end >= can_copy) {
-					buffer_fill_fn(
+					auto copied = buffer_fill_fn(
 						buffer_fill_fn_arg,
 						launder(static_cast<char*>(ring_buffer) + ring_buffer_write_pos),
 						can_copy);
-					ring_buffer_write_pos += can_copy;
+					ring_buffer_write_pos += copied;
 					if (ring_buffer_write_pos == ring_buffer_capacity) {
 						ring_buffer_write_pos = 0;
 					}
+					ring_buffer_size += copied;
 				}
 				else {
-					buffer_fill_fn(
+					auto copied = buffer_fill_fn(
 						buffer_fill_fn_arg,
 						launder(static_cast<char*>(ring_buffer) + ring_buffer_write_pos),
 						remaining_at_end);
-					can_copy -= remaining_at_end;
+					can_copy -= copied;
+					ring_buffer_size += copied;
 
-					buffer_fill_fn(
-						buffer_fill_fn_arg,
-						ring_buffer,
-						can_copy);
-					ring_buffer_write_pos = can_copy;
+					if (copied == remaining_at_end) {
+						ring_buffer_write_pos = 0;
+						copied = buffer_fill_fn(
+							buffer_fill_fn_arg,
+							ring_buffer,
+							can_copy);
+						ring_buffer_write_pos += copied;
+						if (ring_buffer_write_pos == ring_buffer_capacity) {
+							ring_buffer_write_pos = 0;
+						}
+						ring_buffer_size += copied;
+					}
+					else {
+						ring_buffer_write_pos += copied;
+					}
 				}
+			}
 
-				auto ptr = launder(
-					static_cast<char*>(ring_buffer) +
-					ring_buffer_read_pos);
-				memcpy(desc_ptr, ptr, 0x1000);
-				ring_buffer_read_pos += 0x1000;
-				if (ring_buffer_read_pos == ring_buffer_capacity) {
-					ring_buffer_read_pos = 0;
-				}
-				ring_buffer_size -= 0x1000;
+			if (ring_buffer_available >= to_copy_desc) {
+				ring_buffer_read(desc_ptr, to_copy_desc);
 			}
 			else {
-				memset(desc_ptr, 0, 0x1000);
+				if (ring_buffer_available) {
+					ring_buffer_read(desc_ptr, ring_buffer_available);
+					desc_ptr += ring_buffer_available;
+					to_copy_desc -= ring_buffer_available;
+				}
+
+				memset(desc_ptr, 0, to_copy_desc);
 			}
-		}
-		else {
-			auto ptr = launder(
-				static_cast<char*>(ring_buffer) +
-				ring_buffer_read_pos);
-			memcpy(desc_ptr, ptr, 0x1000);
-			ring_buffer_read_pos += 0x1000;
-			if (ring_buffer_read_pos == ring_buffer_capacity) {
-				ring_buffer_read_pos = 0;
-			}
-			ring_buffer_size -= 0x1000;
 		}
 
-		current_fill_pos += 0x1000;
+		remaining -= orig_to_copy;
+
+		current_fill_pos += orig_to_copy;
 		if (current_fill_pos == BUFFER_SIZE) {
 			current_fill_pos = 0;
 		}

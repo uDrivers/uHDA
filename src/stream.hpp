@@ -16,6 +16,8 @@ struct UhdaStream {
 	[[nodiscard]] uint32_t get_pos() const;
 	[[nodiscard]] uint32_t get_software_ahead(uint32_t pos) const;
 
+	void ring_buffer_read(void* dest, size_t size);
+
 	void output_irq();
 
 	uhda::MemSpace space {0};

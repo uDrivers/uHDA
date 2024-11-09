@@ -81,7 +81,7 @@ typedef struct UhdaOutputInfo {
 	UhdaLocation location;
 } UhdaOutputInfo;
 
-typedef void (*UhdaBufferFillFn)(void* arg, void* buffer, uint32_t space);
+typedef uint32_t (*UhdaBufferFillFn)(void* arg, void* buffer, uint32_t space);
 
 typedef enum UhdaFormat {
 	UHDA_FORMAT_PCM8,
