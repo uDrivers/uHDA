@@ -25,6 +25,18 @@ target_sources(my-kernel PRIVATE ${UHDA_SOURCES})
 target_include_directories(my-kernel PRIVATE ${UHDA_INCLUDES})
 ```
 
+#### If using Meson
+Add the following lines to your meson.build:
+```meson
+uhda = subproject('uhda')
+
+uhda_sources = uhda.get_variable('sources')
+my_kernel_sources += uhda_sources
+
+uhda_includes = uhda.get_variable('includes')
+my_kernel_includes += uhda_includes
+```
+
 #### Other build systems
 - Add all .cpp files from [src](src) into your target sources
 - Add [include](include) into your target include directories
