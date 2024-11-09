@@ -585,3 +585,13 @@ UhdaStatus uhda_stream_queue_data(UhdaStream* stream, const void* data, uint32_t
 	stream->queue_data(data, size);
 	return UHDA_STATUS_SUCCESS;
 }
+
+UhdaStatus uhda_stream_get_remaining(const UhdaStream* stream, uint32_t* remaining) {
+	if (!stream->output) {
+		return UHDA_STATUS_UNSUPPORTED;
+	}
+
+	LockGuard guard {stream->lock};
+	*remaining = stream->ring_buffer_size;
+	return UHDA_STATUS_SUCCESS;
+}
