@@ -96,3 +96,9 @@ typedef struct UhdaStreamParams {
 	uint32_t channels;
 	UhdaFormat fmt;
 } UhdaStreamParams;
+
+typedef enum UhdaStreamStatus {
+	UHDA_STREAM_STATUS_UNINITIALIZED,
+	UHDA_STREAM_STATUS_RUNNING,
+	UHDA_STREAM_STATUS_PAUSED
+} UhdaStreamStatus;

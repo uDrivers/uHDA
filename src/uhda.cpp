@@ -586,6 +586,22 @@ UhdaStatus uhda_stream_queue_data(UhdaStream* stream, const void* data, uint32_t
 	return UHDA_STATUS_SUCCESS;
 }
 
+UhdaStreamStatus uhda_stream_get_status(const UhdaStream* stream) {
+	LockGuard guard {stream->lock};
+
+	if (!stream->ring_buffer) {
+		return UHDA_STREAM_STATUS_UNINITIALIZED;
+	}
+
+	auto status = stream->space.load(regs::stream::CTL0);
+	if (status & sdctl0::RUN) {
+		return UHDA_STREAM_STATUS_RUNNING;
+	}
+	else {
+		return UHDA_STREAM_STATUS_PAUSED;
+	}
+}
+
 UhdaStatus uhda_stream_get_remaining(const UhdaStream* stream, uint32_t* remaining) {
 	if (!stream->output) {
 		return UHDA_STATUS_UNSUPPORTED;

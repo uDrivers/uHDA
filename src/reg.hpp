@@ -79,7 +79,7 @@ namespace uhda {
 		}
 
 		template<typename R>
-		typename R::type load(R reg) {
+		typename R::type load(R reg) const {
 			return static_cast<typename R::type>(*launder(reinterpret_cast<const volatile typename R::bits_type*>(base + reg.offset)));
 		}
 

@@ -218,6 +218,11 @@ UhdaStatus uhda_stream_play(UhdaStream* stream, bool play);
 UhdaStatus uhda_stream_queue_data(UhdaStream* stream, const void* data, uint32_t* size);
 
 /*
+ * Gets the status of a stream.
+ */
+UhdaStreamStatus uhda_stream_get_status(const UhdaStream* stream);
+
+/*
  * Gets the amount of remaining queued data within a stream.
  */
 UhdaStatus uhda_stream_get_remaining(const UhdaStream* stream, uint32_t* remaining);
