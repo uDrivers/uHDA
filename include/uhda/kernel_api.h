@@ -2,6 +2,10 @@
 
 #include "types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Reads `size` bytes from the PCI configuration space at offset `offset`.
  */
@@ -114,3 +118,7 @@ UhdaIrqState uhda_kernel_lock_spinlock(void* spinlock);
  * Note: this is also expected to restore the previous interrupt state.
  */
 void uhda_kernel_unlock_spinlock(void* spinlock, UhdaIrqState irq_state);
+
+#ifdef __cplusplus
+}
+#endif
