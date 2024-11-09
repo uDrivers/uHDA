@@ -291,7 +291,7 @@ static PcmFormat pcm_format_from_params(UhdaStreamParams* params) {
 	params->sample_rate = fmt.set_sample_rate(params->sample_rate);
 	params->channels = fmt.set_channels(params->channels);
 
-	uint8_t bits;
+	uint8_t bits = 0;
 	switch (params->fmt) {
 		case UHDA_FORMAT_PCM8:
 			bits = 8;

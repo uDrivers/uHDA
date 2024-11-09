@@ -29,7 +29,7 @@ struct UhdaStream {
 	void** buffer_pages {};
 	void* ring_buffer {};
 	uint32_t ring_buffer_capacity {};
-	volatile uint32_t ring_buffer_size {};
+	uint32_t ring_buffer_size {};
 	uint32_t prev_irq_pos {};
 	uint32_t current_fill_pos {};
 	uint32_t ring_buffer_write_pos {};
