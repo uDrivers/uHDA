@@ -10,7 +10,6 @@
 - Document usage of API
 - Recording
 - Multichannel to different outputs (likely used for surround)
-- More output info, right now only the output type is exposed
 
 ### Usage
 
