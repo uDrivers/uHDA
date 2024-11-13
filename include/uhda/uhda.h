@@ -234,6 +234,11 @@ UhdaStreamStatus uhda_stream_get_status(const UhdaStream* stream);
  */
 UhdaStatus uhda_stream_get_remaining(const UhdaStream* stream, uint32_t* remaining);
 
+/*
+ * Gets the size of the stream's ring buffer chosen in uhda_stream_setup.
+ */
+uint32_t uhda_stream_get_buffer_size(const UhdaStream* stream);
+
 #ifdef __cplusplus
 }
 #endif

@@ -617,3 +617,7 @@ UhdaStatus uhda_stream_get_remaining(const UhdaStream* stream, uint32_t* remaini
 	*remaining = stream->ring_buffer_size;
 	return UHDA_STATUS_SUCCESS;
 }
+
+uint32_t uhda_stream_get_buffer_size(const UhdaStream* stream) {
+	return stream->ring_buffer_capacity;
+}
