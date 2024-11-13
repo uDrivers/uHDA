@@ -122,11 +122,6 @@ void UhdaStream::destroy() {
 			ring_buffer = nullptr;
 		}
 
-		if (lock) {
-			uhda_kernel_free_spinlock(lock);
-			lock = nullptr;
-		}
-
 		uhda_kernel_unmap(bdl, 0x1000);
 		uhda_kernel_deallocate_physical(bdl_phys, 0x1000);
 
@@ -134,6 +129,17 @@ void UhdaStream::destroy() {
 		bdl = nullptr;
 		bdl_phys = 0;
 	}
+
+	space.store(regs::stream::CTL0, sdctl0::RST(true));
+	// todo maybe a timeout here,
+	// it's unlikely that the controller is broken at this point though.
+	while (!(space.load(regs::stream::CTL0) & sdctl0::RST));
+	space.store(regs::stream::CTL0, 0);
+	while (space.load(regs::stream::CTL0) & sdctl0::RST);
+
+	current_fill_pos = 0;
+	ring_buffer_read_pos = 0;
+	ring_buffer_write_pos = 0;
 }
 
 void UhdaStream::play(bool play) {
@@ -226,7 +232,7 @@ void UhdaStream::queue_data(const void* data, uint32_t* size) {
 			data,
 			to_copy);
 		ring_buffer_write_pos += to_copy;
-		if (ring_buffer_write_pos == BUFFER_SIZE) {
+		if (ring_buffer_write_pos == ring_buffer_capacity) {
 			ring_buffer_write_pos = 0;
 		}
 	}
@@ -341,6 +347,7 @@ void UhdaStream::output_irq() {
 				ring_buffer_read(desc_ptr, ring_buffer_available);
 				desc_ptr += ring_buffer_available;
 				to_copy_desc -= ring_buffer_available;
+				ring_buffer_available = 0;
 			}
 
 			if (buffer_fill_fn) {
