@@ -491,7 +491,10 @@ UhdaStatus uhda_path_shutdown(UhdaPath* path) {
 }
 
 UhdaStatus uhda_path_set_volume(UhdaPath* path, int volume) {
-	if (volume > 100) {
+	if (volume < 0) {
+		volume = 0;
+	}
+	else if (volume > 100) {
 		volume = 100;
 	}
 
@@ -501,12 +504,24 @@ UhdaStatus uhda_path_set_volume(UhdaPath* path, int volume) {
 	}
 
 	uint8_t max_value = output->out_amp_caps & 0x7F;
-	uint8_t one_percentage = max_value / 100;
-	if (one_percentage == 0) {
-		one_percentage = 1;
-	}
-	uint32_t value = one_percentage * volume;
-	if (value > max_value || volume == 100) {
+
+	// do the volume calculation in 16.16 fixed point format
+
+	// 0.01 * (1 << 16) == 655.36
+	static constexpr uint32_t ONE_PERCENTAGE = 655;
+
+	uint32_t converted_max_value = max_value * (1 << 16);
+
+	// 0.01 * volume == volume multiplier for <volume> percents
+	uint32_t multiplier = ONE_PERCENTAGE * volume;
+
+	uint32_t result =
+		(static_cast<uint64_t>(multiplier) * static_cast<uint64_t>(converted_max_value))
+		/ (1 << 16);
+	// convert back to the original format
+	uint8_t value = result / (1 << 16);
+
+	if (volume == 100) {
 		value = max_value;
 	}
 
