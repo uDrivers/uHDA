@@ -225,6 +225,11 @@ UhdaStatus uhda_stream_play(UhdaStream* stream, bool play);
 UhdaStatus uhda_stream_queue_data(UhdaStream* stream, const void* data, uint32_t* size);
 
 /*
+ * Clears all currently queued data from the stream.
+ */
+UhdaStatus uhda_stream_clear_queue(UhdaStream* stream);
+
+/*
  * Gets the status of a stream.
  */
 UhdaStreamStatus uhda_stream_get_status(const UhdaStream* stream);

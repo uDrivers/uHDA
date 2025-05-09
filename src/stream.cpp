@@ -258,6 +258,12 @@ void UhdaStream::queue_data(const void* data, uint32_t* size) {
 	*size = to_copy;
 }
 
+void UhdaStream::clear_queue() {
+	LockGuard guard {lock};
+	ring_buffer_size = 0;
+	ring_buffer_write_pos = 0;
+}
+
 uint32_t UhdaStream::get_pos() const {
 	return *dma_pos;
 }

@@ -607,6 +607,11 @@ UhdaStatus uhda_stream_queue_data(UhdaStream* stream, const void* data, uint32_t
 	return UHDA_STATUS_SUCCESS;
 }
 
+UhdaStatus uhda_stream_clear_queue(UhdaStream* stream) {
+	stream->clear_queue();
+	return UHDA_STATUS_SUCCESS;
+}
+
 UhdaStreamStatus uhda_stream_get_status(const UhdaStream* stream) {
 	LockGuard guard {stream->lock};
 

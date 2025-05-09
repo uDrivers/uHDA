@@ -12,6 +12,7 @@ struct UhdaStream {
 	void play(bool play);
 
 	void queue_data(const void* data, uint32_t* size);
+	void clear_queue();
 
 	[[nodiscard]] uint32_t get_pos() const;
 	[[nodiscard]] uint32_t get_software_ahead(uint32_t pos) const;
