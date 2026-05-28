@@ -53,3 +53,9 @@ namespace uhda {
 		return __builtin_launder(ptr);
 	}
 }
+
+#define UHDA_TRY(what) do { \
+	if (auto try_status_ = what; try_status_ != UHDA_STATUS_SUCCESS) { \
+		return try_status_; \
+	} \
+} while (false)

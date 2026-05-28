@@ -11,8 +11,14 @@ typedef enum UhdaStatus {
 	UHDA_STATUS_SUCCESS,
 	UHDA_STATUS_UNSUPPORTED,
 	UHDA_STATUS_NO_MEMORY,
-	UHDA_STATUS_TIMEOUT
+	UHDA_STATUS_MISALIGNED_MEMORY,
+	UHDA_STATUS_TIMEOUT,
 } UhdaStatus;
+
+typedef struct UhdaScatterChunk {
+	uintptr_t phys;
+	void* virt;
+} UhdaScatterChunk;
 
 typedef enum UhdaIrqHint {
 	UHDA_IRQ_HINT_ANY,
@@ -85,6 +91,8 @@ typedef uint32_t (*UhdaBufferFillFn)(void* arg, void* buffer, uint32_t space);
 
 typedef void (*UhdaBufferTripFn)(void* arg, uint32_t remaining);
 
+typedef void (*UhdaPeriodFn)(UhdaStream* stream, void* arg);
+
 typedef enum UhdaFormat {
 	UHDA_FORMAT_PCM8,
 	UHDA_FORMAT_PCM16,
@@ -93,11 +101,40 @@ typedef enum UhdaFormat {
 	UHDA_FORMAT_PCM32
 } UhdaFormat;
 
+/*
+ * Stream parameters
+ *
+ * `period_count` is the count of periods in one buffer.
+ * `period_size` is the size of one period.
+ * `period_callback_distance` is the amount of periods between calls to the period callback.
+ * `period_callback` is a callback called when a period worth of data is consumed/produced.
+ *
+ * Total buffer size is equal to `period_count * period_size`.
+ *
+ * Note: the period callback is run in an interrupt context and is mandatory.
+ * Note: it is advised for `period_count` to be evenly divisible by `period_callback_distance`,
+ * if not then the time between the last and first callbacks of the buffer is different from the rest.
+ */
+
 typedef struct UhdaStreamParams {
 	uint32_t sample_rate;
 	uint32_t channels;
 	UhdaFormat fmt;
+	uint32_t period_count;
+	uint32_t period_size;
+	uint32_t period_callback_distance;
+	UhdaPeriodFn period_callback;
+	void* period_callback_arg;
 } UhdaStreamParams;
+
+#define UHDA_MIN_PERIODS 2
+#define UHDA_MAX_PERIODS 256
+
+#define UHDA_MIN_PERIOD_SIZE 2
+#define UHDA_PERIOD_SIZE_ALIGNMENT 2
+#define UHDA_MAX_PERIOD_SIZE 0xFFFFFFFF
+
+#define UHDA_MIN_PERIOD_CALLBACK_DISTANCE 1
 
 typedef enum UhdaStreamStatus {
 	UHDA_STREAM_STATUS_UNINITIALIZED,

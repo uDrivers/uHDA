@@ -6,41 +6,26 @@
 struct UhdaStream {
 	~UhdaStream();
 
-	UhdaStatus setup(uint32_t buffer_size);
+	UhdaStatus setup(const UhdaStreamParams* params);
 	void destroy();
 
 	void play(bool play);
 
-	void queue_data(const void* data, uint32_t* size);
-	void clear_queue();
-
 	[[nodiscard]] uint32_t get_pos() const;
-	[[nodiscard]] uint32_t get_software_ahead(uint32_t pos) const;
-
-	void ring_buffer_read(void* dest, size_t size);
 
 	void output_irq();
 
 	uhda::MemSpace space {0};
-	UhdaBufferFillFn buffer_fill_fn {};
-	void* buffer_fill_fn_arg {};
-	UhdaBufferTripFn buffer_trip_fn {};
-	void* buffer_trip_fn_arg {};
-	uint32_t buffer_trip_threshold {};
 	uintptr_t bdl_phys {};
 	uhda::BufferDescriptor* bdl {};
 
-	void** buffer_pages {};
-	void* ring_buffer {};
-	uint32_t ring_buffer_capacity {};
-	uint32_t ring_buffer_size {};
-	uint32_t prev_irq_pos {};
-	uint32_t current_fill_pos {};
-	uint32_t ring_buffer_write_pos {};
-	uint32_t ring_buffer_read_pos {};
-	volatile uint32_t* dma_pos {};
+	UhdaScatterChunk* bdl_chunks {};
+	uint32_t bdl_chunk_count {};
+	uint32_t bdl_chunk_size {};
+	UhdaPeriodFn period_callback {};
+	void* period_callback_arg {};
 
-	void* lock {};
+	volatile uint32_t* dma_pos {};
 
 	uint8_t index {};
 	bool output {};

@@ -152,7 +152,7 @@ bool uhda_paths_usable_simultaneously(const UhdaPath** paths, size_t count, bool
 /*
  * Finds a path to the output that is usable at the same time as the other provided paths if provided.
  *
- * `same_stream` means that all the streams are going to be playing the same stream.
+ * `same_stream` means that all the paths are going to be playing the same stream.
  */
 UhdaStatus uhda_find_path(
 	const UhdaOutput* dest,
@@ -163,9 +163,6 @@ UhdaStatus uhda_find_path(
 
 /*
  * Sets up a path for playback.
- *
- * `params` contains hints for the stream parameters,
- * it's also updated to reflect the actual parameters.
  */
 UhdaStatus uhda_path_setup(UhdaPath* path, UhdaStreamParams* params, UhdaStream* stream);
 
@@ -185,25 +182,16 @@ UhdaStatus uhda_path_set_volume(UhdaPath* path, int volume);
 UhdaStatus uhda_path_mute(UhdaPath* path, bool mute);
 
 /*
+ * Checks if the given stream parameters are valid.
+ */
+bool uhda_check_stream_params(const UhdaStreamParams* params);
+
+/*
  * Sets up a stream for playback.
- *
- * `ring_buffer_size` is the size of an internal ring buffer that is used to queue output.
- * `buffer_fill_fn` is an optional callback that is called when the ring buffer has space
- * and more data is needed.
- * `buffer_trip_threshold` is the trip threshold in bytes for the optional buffer trip function,
- * called once per data period when the buffer size is below the specified threshold.
- *
- * Note: all callback functions are run in an interrupt context.
  */
 UhdaStatus uhda_stream_setup(
 	UhdaStream* stream,
-	const UhdaStreamParams* params,
-	uint32_t ring_buffer_size,
-	UhdaBufferFillFn buffer_fill_fn,
-	void* buffer_fill_arg,
-	uint32_t buffer_trip_threshold,
-	UhdaBufferTripFn buffer_trip_fn,
-	void* buffer_trip_arg);
+	const UhdaStreamParams* params);
 
 /*
  * Shuts down an already set up stream.
@@ -218,31 +206,27 @@ UhdaStatus uhda_stream_shutdown(UhdaStream* stream);
 UhdaStatus uhda_stream_play(UhdaStream* stream, bool play);
 
 /*
- * Queues data to the stream and returns the actual amount of data written in `size`.
- *
- * Note: this function is asynchronous, it doesn't block if the ring buffer space is exhausted.
- */
-UhdaStatus uhda_stream_queue_data(UhdaStream* stream, const void* data, uint32_t* size);
-
-/*
- * Clears all currently queued data from the stream.
- */
-UhdaStatus uhda_stream_clear_queue(UhdaStream* stream);
-
-/*
  * Gets the status of a stream.
  */
 UhdaStreamStatus uhda_stream_get_status(const UhdaStream* stream);
 
 /*
- * Gets the amount of remaining queued data within a stream.
+ * Gets the amount of data the controller can fetch at one time from the buffer.
+ * This can be used to know how far ahead of the current position it is safe to write data to.
  */
-UhdaStatus uhda_stream_get_remaining(const UhdaStream* stream, uint32_t* remaining);
+uint32_t uhda_stream_get_ctrl_headroom(const UhdaStream* stream);
 
 /*
- * Gets the size of the stream's ring buffer chosen in uhda_stream_setup.
+ * Gets the current position the controller is reading/writing data to in the buffer.
  */
-uint32_t uhda_stream_get_buffer_size(const UhdaStream* stream);
+uint32_t uhda_stream_get_position(const UhdaStream* stream);
+
+/*
+ * Gets the scatter chunks for the periods.
+ *
+ * Note: The returned pointer and chunks are valid until the stream is shut down.
+ */
+UhdaStatus uhda_stream_get_periods(UhdaStream* stream, const UhdaScatterChunk** chunks);
 
 #ifdef __cplusplus
 }

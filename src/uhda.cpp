@@ -1,5 +1,6 @@
 #include "uhda/uhda.h"
 #include "controller.hpp"
+#include "fmt_utils.hpp"
 #include "lock_guard.hpp"
 #include "spec.hpp"
 #include "uhda/kernel_api.h"
@@ -286,62 +287,12 @@ UhdaStatus uhda_find_path(
 	return UHDA_STATUS_UNSUPPORTED;
 }
 
-static PcmFormat pcm_format_from_params(UhdaStreamParams* params) {
-	PcmFormat fmt {};
-	params->sample_rate = fmt.set_sample_rate(params->sample_rate);
-	params->channels = fmt.set_channels(params->channels);
-
-	uint8_t bits = 0;
-	switch (params->fmt) {
-		case UHDA_FORMAT_PCM8:
-			bits = 8;
-			break;
-		case UHDA_FORMAT_PCM16:
-			bits = 16;
-			break;
-		case UHDA_FORMAT_PCM20:
-			bits = 20;
-			break;
-		case UHDA_FORMAT_PCM24:
-			bits = 24;
-			break;
-		case UHDA_FORMAT_PCM32:
-			bits = 32;
-			break;
-	}
-
-	uint8_t real_bits = fmt.set_bits_per_sample(bits);
-	if (real_bits != bits) {
-		switch (real_bits) {
-			case 8:
-				params->fmt = UHDA_FORMAT_PCM8;
-				break;
-			case 16:
-				params->fmt = UHDA_FORMAT_PCM16;
-				break;
-			case 20:
-				params->fmt = UHDA_FORMAT_PCM20;
-				break;
-			case 24:
-				params->fmt = UHDA_FORMAT_PCM24;
-				break;
-			case 32:
-				params->fmt = UHDA_FORMAT_PCM32;
-				break;
-			default:
-				break;
-		}
-	}
-
-	return fmt;
-}
-
 UhdaStatus uhda_path_setup(UhdaPath* path, UhdaStreamParams* params, UhdaStream* stream) {
-	if (!stream->output) {
+	if (!stream->output || !uhda_check_stream_params(params)) {
 		return UHDA_STATUS_UNSUPPORTED;
 	}
 
-	auto fmt = pcm_format_from_params(params);
+	auto fmt = pcm_format_from_params(params->sample_rate, params->channels, params->fmt);
 
 	auto output = path->widgets.back();
 	if (output->type != widget_type::AUDIO_OUT) {
@@ -550,44 +501,50 @@ UhdaStatus uhda_path_mute(UhdaPath* path, bool mute) {
 	return path->codec->set_amp_gain_mute(mute_widget->nid, amp_data);
 }
 
-UhdaStatus uhda_stream_setup(
-	UhdaStream* stream,
-	const UhdaStreamParams* params,
-	uint32_t ring_buffer_size,
-	UhdaBufferFillFn buffer_fill_fn,
-	void* buffer_fill_arg,
-	uint32_t buffer_trip_threshold,
-	UhdaBufferTripFn buffer_trip_fn,
-	void* buffer_trip_arg) {
-	LockGuard guard {stream->lock};
-	if (stream->ring_buffer) {
+bool uhda_check_stream_params(const UhdaStreamParams* params) {
+	PcmFormat fmt {};
+
+	if (fmt.set_sample_rate(params->sample_rate) != params->sample_rate) {
+		return false;
+	}
+
+	if (fmt.set_channels(params->channels) != params->channels) {
+		return false;
+	}
+
+	if (params->period_size < UHDA_MIN_PERIOD_SIZE || params->period_size % UHDA_PERIOD_SIZE_ALIGNMENT != 0) {
+		return false;
+	}
+
+	if (params->period_count < UHDA_MIN_PERIODS || params->period_count > UHDA_MAX_PERIODS) {
+		return false;
+	}
+
+	if (params->period_callback_distance < UHDA_MIN_PERIOD_CALLBACK_DISTANCE ||
+		params->period_callback_distance > params->period_count) {
+
+		return false;
+	}
+
+	if (!params->period_callback) {
+		return false;
+	}
+
+	return true;
+}
+
+UhdaStatus uhda_stream_setup(UhdaStream* stream, const UhdaStreamParams* params) {
+	if (!uhda_check_stream_params(params)) {
 		return UHDA_STATUS_UNSUPPORTED;
 	}
 
-	if (!stream->output) {
-		return UHDA_STATUS_UNSUPPORTED;
-	}
-
-	stream->buffer_fill_fn = buffer_fill_fn;
-	stream->buffer_fill_fn_arg = buffer_fill_arg;
-	stream->buffer_trip_fn = buffer_trip_fn;
-	stream->buffer_trip_fn_arg = buffer_trip_arg;
-	stream->buffer_trip_threshold = buffer_trip_threshold;
-
-	auto params_copy = *params;
-
-	auto fmt = pcm_format_from_params(&params_copy);
-
-	stream->space.store(regs::stream::FMT, fmt.value);
-	return stream->setup(ring_buffer_size);
+	return stream->setup(params);
 }
 
 UhdaStatus uhda_stream_shutdown(UhdaStream* stream) {
 	stream->destroy();
 	return UHDA_STATUS_SUCCESS;
 }
-
-#define memcpy __builtin_memcpy
 
 UhdaStatus uhda_stream_play(UhdaStream* stream, bool play) {
 	if (!stream->output) {
@@ -598,24 +555,8 @@ UhdaStatus uhda_stream_play(UhdaStream* stream, bool play) {
 	return UHDA_STATUS_SUCCESS;
 }
 
-UhdaStatus uhda_stream_queue_data(UhdaStream* stream, const void* data, uint32_t* size) {
-	if (!stream->output) {
-		return UHDA_STATUS_UNSUPPORTED;
-	}
-
-	stream->queue_data(data, size);
-	return UHDA_STATUS_SUCCESS;
-}
-
-UhdaStatus uhda_stream_clear_queue(UhdaStream* stream) {
-	stream->clear_queue();
-	return UHDA_STATUS_SUCCESS;
-}
-
 UhdaStreamStatus uhda_stream_get_status(const UhdaStream* stream) {
-	LockGuard guard {stream->lock};
-
-	if (!stream->ring_buffer) {
+	if (!stream->bdl_chunks) {
 		return UHDA_STREAM_STATUS_UNINITIALIZED;
 	}
 
@@ -628,16 +569,29 @@ UhdaStreamStatus uhda_stream_get_status(const UhdaStream* stream) {
 	}
 }
 
-UhdaStatus uhda_stream_get_remaining(const UhdaStream* stream, uint32_t* remaining) {
-	if (!stream->output) {
+uint32_t uhda_stream_get_ctrl_headroom(const UhdaStream* stream) {
+	if (!stream->bdl_chunks) {
+		return 0;
+	}
+
+	auto value = stream->space.load(regs::stream::FIFOS);
+	if (!value) {
+		// if the register is reporting zero for some reason then guess 64.
+		value = 64;
+	}
+
+	return value;
+}
+
+uint32_t uhda_stream_get_position(const UhdaStream* stream) {
+	return stream->get_pos();
+}
+
+UhdaStatus uhda_stream_get_periods(UhdaStream* stream, const UhdaScatterChunk** chunks) {
+	if (!stream->bdl_chunks) {
 		return UHDA_STATUS_UNSUPPORTED;
 	}
 
-	LockGuard guard {stream->lock};
-	*remaining = stream->ring_buffer_size;
+	*chunks = stream->bdl_chunks;
 	return UHDA_STATUS_SUCCESS;
-}
-
-uint32_t uhda_stream_get_buffer_size(const UhdaStream* stream) {
-	return stream->ring_buffer_capacity;
 }

@@ -86,6 +86,21 @@ UhdaStatus uhda_kernel_allocate_physical(size_t size, uintptr_t* res);
 void uhda_kernel_deallocate_physical(uintptr_t phys, size_t size);
 
 /*
+ * Allocates `count` `size` byte chunks of contiguous physical memory.
+ *
+ * Note: Returned chunks must be 128-byte aligned.
+ * Note: Mapping the chunks to virtual memory is optional unless using the simple stream API,
+ * if not mapping them then it is advised to set the `virt` field of the chunks to null.
+ * Note: `size` depends on stream period size, when using the simple api it's at most 0x1000 bytes.
+ */
+UhdaStatus uhda_kernel_allocate_scatter(size_t count, size_t size, UhdaScatterChunk* res);
+
+/*
+ * Deallocates previously allocated scatter chunks.
+ */
+void uhda_kernel_deallocate_scatter(UhdaScatterChunk* chunks, size_t count, size_t size);
+
+/*
  * Maps `size` bytes starting at physical address `phys` in virtual memory as uncacheable.
  */
 UhdaStatus uhda_kernel_map(uintptr_t phys, size_t size, void** virt);

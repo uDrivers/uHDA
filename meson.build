@@ -7,6 +7,7 @@ sources = files(
 	'src/controller.cpp',
 	'src/codec.cpp',
 	'src/stream.cpp',
+	'src/simple.cpp',
 )
 
 includes = include_directories('include')

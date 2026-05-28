@@ -62,18 +62,6 @@ UhdaController::~UhdaController() {
 		uhda_kernel_deallocate_physical(dpl_phys, 0x1000);
 	}
 
-	for (auto& stream : in_streams) {
-		if (stream.lock) {
-			uhda_kernel_free_spinlock(stream.lock);
-		}
-	}
-
-	for (auto& stream : out_streams) {
-		if (stream.lock) {
-			uhda_kernel_free_spinlock(stream.lock);
-		}
-	}
-
 	if (lock) {
 		uhda_kernel_free_spinlock(lock);
 	}
@@ -178,20 +166,6 @@ UhdaStatus UhdaController::init() {
 	status = uhda_kernel_create_spinlock(&lock);
 	if (status != UHDA_STATUS_SUCCESS) {
 		goto fail;
-	}
-
-	for (auto& stream : in_streams) {
-		status = uhda_kernel_create_spinlock(&stream.lock);
-		if (status != UHDA_STATUS_SUCCESS) {
-			goto fail;
-		}
-	}
-
-	for (auto& stream : out_streams) {
-		status = uhda_kernel_create_spinlock(&stream.lock);
-		if (status != UHDA_STATUS_SUCCESS) {
-			goto fail;
-		}
 	}
 
 	status = resume();
