@@ -162,6 +162,11 @@ UhdaStatus uhda_find_path(
 	UhdaPath** res);
 
 /*
+ * Gets info about a path.
+ */
+UhdaPathInfo uhda_path_get_info(const UhdaPath* path);
+
+/*
  * Sets up a path for playback.
  */
 UhdaStatus uhda_path_setup(UhdaPath* path, UhdaStreamParams* params, UhdaStream* stream);

@@ -557,6 +557,7 @@ namespace uhda {
 			NODE_COUNT = 0x4,
 			FUNC_GROUP_TYPE = 0x5,
 			AUDIO_CAPS = 0x9,
+			SUPPORTED_RATES = 0xA,
 			PIN_CAPS = 0xC,
 			IN_AMP_CAPS = 0xD,
 			CONN_LIST_LEN = 0xE,

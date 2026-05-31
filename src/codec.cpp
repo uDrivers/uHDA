@@ -49,6 +49,7 @@ UhdaStatus UhdaCodec::init() {
 			uint32_t pin_caps;
 			uint32_t conn_list_len_resp;
 			uint32_t default_config;
+			uint32_t supported_rates = 0;
 
 			status = get_parameter(widget_i, param::AUDIO_CAPS, audio_caps);
 			if (status != UHDA_STATUS_SUCCESS) {
@@ -76,6 +77,11 @@ UhdaStatus UhdaCodec::init() {
 			}
 
 			status = get_config_default(widget_i, default_config);
+			if (status != UHDA_STATUS_SUCCESS) {
+				return status;
+			}
+
+			status = get_parameter(widget_i, param::SUPPORTED_RATES, supported_rates);
 			if (status != UHDA_STATUS_SUCCESS) {
 				return status;
 			}
@@ -109,6 +115,43 @@ UhdaStatus UhdaCodec::init() {
 				}
 			}
 
+			uhda::vector<uint32_t> supported_sample_rates;
+			uhda::vector<UhdaFormat> supported_formats;
+
+#define ADD_RATE(bit, rate) do { \
+	if ((supported_rates & (1 << (bit))) && !supported_sample_rates.push(rate)) { \
+		return UHDA_STATUS_NO_MEMORY; \
+	} \
+} while (false)
+#define ADD_FMT(bit, fmt) do { \
+	if ((supported_rates & (1 << (bit))) && !supported_formats.push(fmt)) { \
+		return UHDA_STATUS_NO_MEMORY; \
+	} \
+} while (false)
+
+			if (supported_rates != 0) {
+				ADD_RATE(0, 8000);
+				ADD_RATE(1, 11025);
+				ADD_RATE(2, 16000);
+				ADD_RATE(3, 22050);
+				ADD_RATE(4, 32000);
+				ADD_RATE(5, 44100);
+				ADD_RATE(6, 48000);
+				ADD_RATE(7, 88200);
+				ADD_RATE(8, 96000);
+				ADD_RATE(9, 176400);
+				ADD_RATE(10, 192000);
+				ADD_FMT(16, UHDA_FORMAT_PCM8);
+				ADD_FMT(17, UHDA_FORMAT_PCM16);
+				ADD_FMT(18, UHDA_FORMAT_PCM20);
+				ADD_FMT(19, UHDA_FORMAT_PCM24);
+				ADD_FMT(20, UHDA_FORMAT_PCM32);
+			}
+
+
+#undef ADD_RATE
+#undef ADD_FMT
+
 			// set output amp, set left amp, set right amp and mute
 			uint16_t amp_data = 1 << 15 | 1 << 13 | 1 << 12 | 1 << 7;
 			status = set_amp_gain_mute(widget_i, amp_data);
@@ -123,10 +166,13 @@ UhdaStatus UhdaCodec::init() {
 			UhdaWidget widget {
 				.codec = this,
 				.connections {move(connections)},
+				.supported_sample_rates {move(supported_sample_rates)},
+				.supported_formats {move(supported_formats)},
 				.in_amp_caps = in_amp_caps,
 				.out_amp_caps = out_amp_caps,
 				.pin_caps = pin_caps,
 				.default_config = default_config,
+				.supported_rates = supported_rates,
 				.nid = widget_i,
 				.type = type,
 				.default_dev = static_cast<uint8_t>(default_config >> 20 & 0xF),

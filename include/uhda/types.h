@@ -87,10 +87,6 @@ typedef struct UhdaOutputInfo {
 	UhdaLocation location;
 } UhdaOutputInfo;
 
-typedef uint32_t (*UhdaBufferFillFn)(void* arg, void* buffer, uint32_t space);
-
-typedef void (*UhdaBufferTripFn)(void* arg, uint32_t remaining);
-
 typedef void (*UhdaPeriodFn)(UhdaStream* stream, void* arg);
 
 typedef enum UhdaFormat {
@@ -100,6 +96,13 @@ typedef enum UhdaFormat {
 	UHDA_FORMAT_PCM24,
 	UHDA_FORMAT_PCM32
 } UhdaFormat;
+
+typedef struct UhdaPathInfo {
+	const uint32_t* supported_sample_rates;
+	uint32_t supported_sample_rate_count;
+	const UhdaFormat* supported_formats;
+	uint32_t supported_formats_count;
+} UhdaPathInfo;
 
 /*
  * Stream parameters

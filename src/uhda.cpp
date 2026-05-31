@@ -287,6 +287,19 @@ UhdaStatus uhda_find_path(
 	return UHDA_STATUS_UNSUPPORTED;
 }
 
+UhdaPathInfo uhda_path_get_info(const UhdaPath* path) {
+	auto output = path->widgets.back();
+
+	UhdaPathInfo info {
+		.supported_sample_rates = output->supported_sample_rates.data(),
+		.supported_sample_rate_count = static_cast<uint32_t>(output->supported_sample_rates.size()),
+		.supported_formats = output->supported_formats.data(),
+		.supported_formats_count = static_cast<uint32_t>(output->supported_formats.size())
+	};
+
+	return info;
+}
+
 UhdaStatus uhda_path_setup(UhdaPath* path, UhdaStreamParams* params, UhdaStream* stream) {
 	if (!stream->output || !uhda_check_stream_params(params)) {
 		return UHDA_STATUS_UNSUPPORTED;

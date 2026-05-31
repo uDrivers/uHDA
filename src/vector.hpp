@@ -155,6 +155,10 @@ namespace uhda {
 			return ptr[_size - 1];
 		}
 
+		constexpr const T& back() const {
+			return ptr[_size - 1];
+		}
+
 		[[nodiscard]] constexpr size_t size() const {
 			return _size;
 		}
