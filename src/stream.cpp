@@ -97,6 +97,8 @@ void UhdaStream::destroy() {
 	while (!(space.load(regs::stream::CTL0) & sdctl0::RST));
 	space.store(regs::stream::CTL0, 0);
 	while (space.load(regs::stream::CTL0) & sdctl0::RST);
+
+	*dma_pos = 0;
 }
 
 void UhdaStream::play(bool play) {
